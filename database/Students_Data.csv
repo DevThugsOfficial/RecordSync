@@ -1,0 +1,7 @@
+ID,Name,Status,ClassesAttended,TimeIn,TimeOut,Img_Path
+00-001,Cael Rebosura,Present,1,07:40 AM,03:00 PM,assets/profiles/Cael.jpeg
+00-002,Donard Lleno,Late,1,08:20 AM,03:00 PM,assets/profiles/Cael.jpeg
+00-003,John Cape,Absent,0,,,assets/profiles/Cael.jpeg
+00-1003,Athan Mentil,Present,1,1:40 AM,,assets/profiles/AthanMentil.jpeg
+00-1001,Mark M. Adalim,Present,1,1:40 AM,,assets/profiles/MarkM.Adalim.jpeg
+00-1002,Kee Jay,Present,1,1:40 AM,,assets/profiles/KeeJay.jpeg
