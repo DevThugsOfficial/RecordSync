@@ -60,6 +60,11 @@ def route_handler(page: ft.Page) -> Callable[[ft.RouteChangeEvent], None]:
         page.views.clear()
         target = page.route or "/"
 
+        # redirect plain /dashboard to /dashboard/attendance so the dashboard opens on Attendance by default
+        if target == "/dashboard":
+            page.go("/dashboard/attendance")
+            return
+
         # Treat any /dashboard/* as dashboard root view so dashboard_view can parse subpath
         if target.startswith("/dashboard"):
             view_factory = routes.get("/dashboard")

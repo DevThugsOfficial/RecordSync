@@ -2,9 +2,11 @@ import csv
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+import json
 
 DB_DIR = Path(__file__).resolve().parent.parent / "database"
 ATTENDANCE_CSV = DB_DIR / "Students_Data.csv"
+SETTINGS_JSON = DB_DIR / "settings.json"
 
 
 def _ensure_db_dir():
@@ -94,7 +96,7 @@ def determine_status(time_in: str, class_start_time: str, class_end_time: str, c
         return "Absent"
 
 
-def update_statuses(class_start_time: str, class_end_time: str, class_start_grace_minutes: int = 5) -> Dict[str, Any]:
+def update_statuses(class_start_time: str, class_end_time: str, class_start_grace_minutes: int = 15) -> Dict[str, Any]:
     """
     Recompute status for each student in Students_Data.csv based on TimeIn and class schedule.
     - Updates Status field
@@ -137,30 +139,47 @@ def update_statuses(class_start_time: str, class_end_time: str, class_start_grac
 
 
 # backward-compatible name
-def sync_students_data(class_start_time: str, class_end_time: str, class_start_grace_minutes: int = 5) -> Dict[str, Any]:
+def sync_students_data(class_start_time: Optional[str] = None, class_end_time: str = "03:00 PM", class_start_grace_minutes: int = 15) -> Dict[str, Any]:
+    """
+    Convenience wrapper that recomputes statuses for all rows.
+    If class_start_time is not provided, attempt to read from persisted settings.
+    """
+    if not class_start_time:
+        s = read_settings()
+        class_start_time = s.get("class_start_time") or "08:00 AM"
     return update_statuses(class_start_time, class_end_time, class_start_grace_minutes)
 
 
 def logout_user(user_id: Optional[str] = None) -> Dict[str, Any]:
-    """Finalize attendance records during logout"""
+    """Clear attendance CSV data only"""
     _ensure_db_dir()
     
     results = {
         "status": "success",
-        "records_finalized": 0,
+        "records_deleted": 0,
         "errors": []
     }
     
     try:
         attendance_rows = _read_attendance_csv()
-        _write_attendance_csv(attendance_rows)
-        results["records_finalized"] = len(attendance_rows)
+        count = len(attendance_rows)
+
+        fieldnames = ["ID", "Name", "Status", "ClassesAttended", "TimeIn", "TimeOut", "Img_Path"]
+
+        # Clear CSV but keep file
+        with ATTENDANCE_CSV.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+        results["records_deleted"] = count
+
     except Exception as e:
         results["status"] = "error"
-        results["errors"].append(f"Logout failed: {str(e)}")
-        print(f"Error in logout_user: {e}")
+        results["errors"].append(str(e))
+        print(f"Logout error: {e}")
     
     return results
+
 
 
 def get_all_attendance() -> List[Dict[str, Any]]:
@@ -196,3 +215,26 @@ def get_student_attendance(name: str) -> Optional[Dict[str, Any]]:
 def get_attendance_summary() -> List[Dict[str, Any]]:
     """Compatibility helper"""
     return get_all_attendance()
+
+
+def write_settings(settings: Dict[str, Any]) -> None:
+    """Persist simple UI settings to disk (not required for runtime but useful for core to read)."""
+    _ensure_db_dir()
+    try:
+        with SETTINGS_JSON.open("w", encoding="utf-8") as f:
+            json.dump(settings, f)
+    except Exception as e:
+        print(f"Error writing settings: {e}")
+
+
+def read_settings() -> Dict[str, Any]:
+    """Read persisted settings if present."""
+    if not SETTINGS_JSON.exists():
+        return {}
+    try:
+        with SETTINGS_JSON.open(encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception as e:
+        print(f"Error reading settings: {e}")
+        return {}
